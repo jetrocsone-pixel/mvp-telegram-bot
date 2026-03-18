@@ -16,15 +16,29 @@ async def telegram_webhook(request: Request):
 
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
 
-        reply_text = f"Ты написал: {text}"
+        if "text" in data["message"]:
+            text = data["message"]["text"]
 
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            reply_text = (
+                "Бот работает.\n\n"
+                "Отправь фотографию товара, и следующим шагом мы подключим обработку изображения.\n\n"
+                f"Твой текст: {text}"
+            )
 
-        requests.post(url, json={
-            "chat_id": chat_id,
-            "text": reply_text
-        })
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
+            requests.post(url, json={
+                "chat_id": chat_id,
+                "text": reply_text
+            })
+
+        elif "photo" in data["message"]:
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
+            requests.post(url, json={
+                "chat_id": chat_id,
+                "text": "Фото получено. Следующим шагом подключим скачивание изображения."
+            })
 
     return {"ok": True}
