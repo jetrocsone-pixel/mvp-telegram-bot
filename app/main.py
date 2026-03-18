@@ -6,6 +6,26 @@ app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+
+def send_message(chat_id, text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, json={
+        "chat_id": chat_id,
+        "text": text
+    })
+
+
+def get_file_path(file_id):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile"
+    response = requests.get(url, params={"file_id": file_id})
+    data = response.json()
+
+    if data.get("ok"):
+        return data["result"]["file_path"]
+
+    return None
+
+
 @app.get("/")
 def home():
     return {"status": "ok"}
@@ -20,12 +40,15 @@ async def telegram_webhook(request: Request):
 
         # 1. Если пришло фото
         if "photo" in data["message"]:
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            photo_list = data["message"]["photo"]
+            file_id = photo_list[-1]["file_id"]  # берём самое большое фото
+            file_path = get_file_path(file_id)
 
-            requests.post(url, json={
-                "chat_id": chat_id,
-                "text": "Фото получено. Следующим шагом подключим скачивание изображения."
-            })
+            if file_path:
+                file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+                send_message(chat_id, f"Фото получено.\nfile_id: {file_id}\nfile_path: {file_path}\nfile_url: {file_url}")
+            else:
+                send_message(chat_id, "Не удалось получить путь к фото.")
 
         # 2. Если пришёл файл
         elif "document" in data["message"]:
@@ -33,19 +56,16 @@ async def telegram_webhook(request: Request):
             mime_type = document.get("mime_type", "")
 
             if mime_type.startswith("image/"):
-                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+                file_id = document["file_id"]
+                file_path = get_file_path(file_id)
 
-                requests.post(url, json={
-                    "chat_id": chat_id,
-                    "text": "Файл с изображением получен. Следующим шагом подключим скачивание изображения."
-                })
+                if file_path:
+                    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+                    send_message(chat_id, f"Файл изображения получен.\nfile_id: {file_id}\nfile_path: {file_path}\nfile_url: {file_url}")
+                else:
+                    send_message(chat_id, "Не удалось получить путь к файлу изображения.")
             else:
-                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-                requests.post(url, json={
-                    "chat_id": chat_id,
-                    "text": "Я принимаю только изображения. Отправь фото товара как фото или как файл-изображение."
-                })
+                send_message(chat_id, "Я принимаю только изображения. Отправь фото товара как фото или как файл-изображение.")
 
         # 3. Если пришёл текст
         elif "text" in data["message"]:
@@ -58,11 +78,6 @@ async def telegram_webhook(request: Request):
                 f"Твой текст: {text}"
             )
 
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-            requests.post(url, json={
-                "chat_id": chat_id,
-                "text": reply_text
-            })
+            send_message(chat_id, reply_text)
 
     return {"ok": True}
