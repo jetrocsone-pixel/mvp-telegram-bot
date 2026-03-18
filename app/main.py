@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Request
 import requests
+import os
 
 app = FastAPI()
 
-BOT_TOKEN = "8591079372:AAGncRoWu_xNfHzTMG879XwB7LEtvxvIyZY"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 @app.get("/")
 def home():
