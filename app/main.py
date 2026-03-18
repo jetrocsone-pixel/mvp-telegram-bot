@@ -5,6 +5,7 @@ import os
 app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+REMOVE_BG_API_KEY = os.getenv("REMOVE_BG_API_KEY")
 
 
 def send_message(chat_id, text):
@@ -15,6 +16,17 @@ def send_message(chat_id, text):
     })
 
 
+def send_document(chat_id, file_bytes, filename="result.png"):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+    files = {
+        "document": (filename, file_bytes, "image/png")
+    }
+    data = {
+        "chat_id": chat_id
+    }
+    requests.post(url, data=data, files=files)
+
+
 def get_file_path(file_id):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile"
     response = requests.get(url, params={"file_id": file_id})
@@ -22,6 +34,25 @@ def get_file_path(file_id):
 
     if data.get("ok"):
         return data["result"]["file_path"]
+
+    return None
+
+
+def remove_background_from_url(image_url):
+    response = requests.post(
+        "https://api.remove.bg/v1.0/removebg",
+        data={
+            "image_url": image_url,
+            "size": "auto"
+        },
+        headers={
+            "X-Api-Key": REMOVE_BG_API_KEY
+        },
+        timeout=120
+    )
+
+    if response.status_code == 200:
+        return response.content
 
     return None
 
@@ -41,12 +72,19 @@ async def telegram_webhook(request: Request):
         # 1. Если пришло фото
         if "photo" in data["message"]:
             photo_list = data["message"]["photo"]
-            file_id = photo_list[-1]["file_id"]  # берём самое большое фото
+            file_id = photo_list[-1]["file_id"]
             file_path = get_file_path(file_id)
 
             if file_path:
                 file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-                send_message(chat_id, f"Фото получено.\nfile_id: {file_id}\nfile_path: {file_path}\nfile_url: {file_url}")
+                send_message(chat_id, "Фото получено. Удаляю фон, это может занять до 20–40 секунд.")
+
+                result_png = remove_background_from_url(file_url)
+
+                if result_png:
+                    send_document(chat_id, result_png, "removed_bg.png")
+                else:
+                    send_message(chat_id, "Не удалось удалить фон. Попробуй другое изображение.")
             else:
                 send_message(chat_id, "Не удалось получить путь к фото.")
 
@@ -61,7 +99,14 @@ async def telegram_webhook(request: Request):
 
                 if file_path:
                     file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-                    send_message(chat_id, f"Файл изображения получен.\nfile_id: {file_id}\nfile_path: {file_path}\nfile_url: {file_url}")
+                    send_message(chat_id, "Файл изображения получен. Удаляю фон, это может занять до 20–40 секунд.")
+
+                    result_png = remove_background_from_url(file_url)
+
+                    if result_png:
+                        send_document(chat_id, result_png, "removed_bg.png")
+                    else:
+                        send_message(chat_id, "Не удалось удалить фон. Попробуй другое изображение.")
                 else:
                     send_message(chat_id, "Не удалось получить путь к файлу изображения.")
             else:
