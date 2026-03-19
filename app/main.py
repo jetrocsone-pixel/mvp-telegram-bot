@@ -8,12 +8,18 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 REMOVE_BG_API_KEY = os.getenv("REMOVE_BG_API_KEY")
 
 
-def send_message(chat_id, text):
+def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, json={
+
+    payload = {
         "chat_id": chat_id,
         "text": text
-    })
+    }
+
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+
+    requests.post(url, json=payload)
 
 
 def send_document(chat_id, file_bytes, filename="result.png"):
@@ -25,6 +31,16 @@ def send_document(chat_id, file_bytes, filename="result.png"):
         "chat_id": chat_id
     }
     requests.post(url, data=data, files=files)
+
+
+def get_main_menu():
+    return {
+        "keyboard": [
+            [{"text": "Удалить фон"}, {"text": "Создать ТЗ"}],
+            [{"text": "Сгенерировать обложки"}, {"text": "Помощь"}]
+        ],
+        "resize_keyboard": True
+    }
 
 
 def get_file_path(file_id):
@@ -76,7 +92,6 @@ async def telegram_webhook(request: Request):
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
 
-        # 1. Если пришло фото
         if "photo" in data["message"]:
             photo_list = data["message"]["photo"]
             file_id = photo_list[-1]["file_id"]
@@ -84,7 +99,11 @@ async def telegram_webhook(request: Request):
 
             if file_path:
                 file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-                send_message(chat_id, "Фото получено. Удаляю фон, это может занять до 20–40 секунд.")
+                send_message(
+                    chat_id,
+                    "Фото получено. Удаляю фон, это может занять до 20–40 секунд.",
+                    reply_markup=get_main_menu()
+                )
 
                 result = remove_background_from_url(file_url)
 
@@ -96,11 +115,10 @@ async def telegram_webhook(request: Request):
                         f"Код ошибки: {result['status_code']}\n"
                         f"Ответ сервиса: {result['error_text']}"
                     )
-                    send_message(chat_id, error_message)
+                    send_message(chat_id, error_message, reply_markup=get_main_menu())
             else:
-                send_message(chat_id, "Не удалось получить путь к фото.")
+                send_message(chat_id, "Не удалось получить путь к фото.", reply_markup=get_main_menu())
 
-        # 2. Если пришёл файл
         elif "document" in data["message"]:
             document = data["message"]["document"]
             mime_type = document.get("mime_type", "")
@@ -111,7 +129,11 @@ async def telegram_webhook(request: Request):
 
                 if file_path:
                     file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-                    send_message(chat_id, "Файл изображения получен. Удаляю фон, это может занять до 20–40 секунд.")
+                    send_message(
+                        chat_id,
+                        "Файл изображения получен. Удаляю фон, это может занять до 20–40 секунд.",
+                        reply_markup=get_main_menu()
+                    )
 
                     result = remove_background_from_url(file_url)
 
@@ -123,23 +145,63 @@ async def telegram_webhook(request: Request):
                             f"Код ошибки: {result['status_code']}\n"
                             f"Ответ сервиса: {result['error_text']}"
                         )
-                        send_message(chat_id, error_message)
+                        send_message(chat_id, error_message, reply_markup=get_main_menu())
                 else:
-                    send_message(chat_id, "Не удалось получить путь к файлу изображения.")
+                    send_message(chat_id, "Не удалось получить путь к файлу изображения.", reply_markup=get_main_menu())
             else:
-                send_message(chat_id, "Я принимаю только изображения. Отправь фото товара как фото или как файл-изображение.")
+                send_message(
+                    chat_id,
+                    "Я принимаю только изображения. Отправь фото товара как фото или как файл-изображение.",
+                    reply_markup=get_main_menu()
+                )
 
-        # 3. Если пришёл текст
         elif "text" in data["message"]:
-            text = data["message"]["text"]
+            text = data["message"]["text"].strip()
 
-            reply_text = (
-                "Бот работает.\n\n"
-                "Отправь фотографию товара.\n"
-                "Лучше всего — как файл, чтобы не терялось качество.\n\n"
-                f"Твой текст: {text}"
-            )
+            if text == "/start":
+                send_message(
+                    chat_id,
+                    "Добро пожаловать.\n\nВыбери нужное действие в меню ниже.",
+                    reply_markup=get_main_menu()
+                )
 
-            send_message(chat_id, reply_text)
+            elif text == "Удалить фон":
+                send_message(
+                    chat_id,
+                    "Отправь фото товара.\nЛучше всего отправлять как файл без сжатия.",
+                    reply_markup=get_main_menu()
+                )
+
+            elif text == "Создать ТЗ":
+                send_message(
+                    chat_id,
+                    "Режим создания ТЗ будет следующим шагом.\nПока подготовка завершена.",
+                    reply_markup=get_main_menu()
+                )
+
+            elif text == "Сгенерировать обложки":
+                send_message(
+                    chat_id,
+                    "Режим генерации обложек подключим следующим этапом.",
+                    reply_markup=get_main_menu()
+                )
+
+            elif text == "Помощь":
+                send_message(
+                    chat_id,
+                    "Я умею:\n"
+                    "1. Удалять фон у товара\n"
+                    "2. Готовить ТЗ для фотоворонки\n"
+                    "3. Генерировать обложки\n\n"
+                    "Сейчас полностью работает функция удаления фона.",
+                    reply_markup=get_main_menu()
+                )
+
+            else:
+                send_message(
+                    chat_id,
+                    "Выбери действие в меню ниже.",
+                    reply_markup=get_main_menu()
+                )
 
     return {"ok": True}
