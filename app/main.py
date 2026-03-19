@@ -52,9 +52,16 @@ def remove_background_from_url(image_url):
     )
 
     if response.status_code == 200:
-        return response.content
+        return {
+            "success": True,
+            "content": response.content
+        }
 
-    return None
+    return {
+        "success": False,
+        "status_code": response.status_code,
+        "error_text": response.text
+    }
 
 
 @app.get("/")
@@ -79,12 +86,17 @@ async def telegram_webhook(request: Request):
                 file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
                 send_message(chat_id, "Фото получено. Удаляю фон, это может занять до 20–40 секунд.")
 
-                result_png = remove_background_from_url(file_url)
+                result = remove_background_from_url(file_url)
 
-                if result_png:
-                    send_document(chat_id, result_png, "removed_bg.png")
+                if result["success"]:
+                    send_document(chat_id, result["content"], "removed_bg.png")
                 else:
-                    send_message(chat_id, "Не удалось удалить фон. Попробуй другое изображение.")
+                    error_message = (
+                        "Не удалось удалить фон.\n"
+                        f"Код ошибки: {result['status_code']}\n"
+                        f"Ответ сервиса: {result['error_text']}"
+                    )
+                    send_message(chat_id, error_message)
             else:
                 send_message(chat_id, "Не удалось получить путь к фото.")
 
@@ -101,12 +113,17 @@ async def telegram_webhook(request: Request):
                     file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
                     send_message(chat_id, "Файл изображения получен. Удаляю фон, это может занять до 20–40 секунд.")
 
-                    result_png = remove_background_from_url(file_url)
+                    result = remove_background_from_url(file_url)
 
-                    if result_png:
-                        send_document(chat_id, result_png, "removed_bg.png")
+                    if result["success"]:
+                        send_document(chat_id, result["content"], "removed_bg.png")
                     else:
-                        send_message(chat_id, "Не удалось удалить фон. Попробуй другое изображение.")
+                        error_message = (
+                            "Не удалось удалить фон.\n"
+                            f"Код ошибки: {result['status_code']}\n"
+                            f"Ответ сервиса: {result['error_text']}"
+                        )
+                        send_message(chat_id, error_message)
                 else:
                     send_message(chat_id, "Не удалось получить путь к файлу изображения.")
             else:
