@@ -6,6 +6,7 @@ app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 REMOVE_BG_API_KEY = os.getenv("REMOVE_BG_API_KEY")
+user_modes = {}
 
 
 def send_message(chat_id, text, reply_markup=None):
@@ -93,6 +94,14 @@ async def telegram_webhook(request: Request):
         chat_id = data["message"]["chat"]["id"]
 
         if "photo" in data["message"]:
+            current_mode = user_modes.get(chat_id)
+            if current_mode == "tz":
+                send_message(
+                    chat_id,
+                    "Фото для ТЗ получено.\nСледующим шагом подключим сбор описания товара и генерацию ТЗ.",
+                    reply_markup=get_main_menu()
+                )
+                return {"ok": True}            
             photo_list = data["message"]["photo"]
             file_id = photo_list[-1]["file_id"]
             file_path = get_file_path(file_id)
@@ -120,6 +129,25 @@ async def telegram_webhook(request: Request):
                 send_message(chat_id, "Не удалось получить путь к фото.", reply_markup=get_main_menu())
 
         elif "document" in data["message"]:
+            current_mode = user_modes.get(chat_id)
+            if current_mode == "tz":
+                document = data["message"]["document"]
+                mime_type = document.get("mime_type", "")
+
+                if mime_type.startswith("image/"):
+                    send_message(
+                        chat_id,
+                        "Файл изображения для ТЗ получен.\nСледующим шагом подключим сбор описания товара и генерацию ТЗ.",
+                        reply_markup=get_main_menu()
+                    )
+                else:
+                    send_message(
+                        chat_id,
+                        "Для ТЗ нужен файл-изображение. Отправь фото товара.",
+                        reply_markup=get_main_menu()
+                    )
+
+                return {"ok": True}            
             document = data["message"]["document"]
             mime_type = document.get("mime_type", "")
 
@@ -159,6 +187,7 @@ async def telegram_webhook(request: Request):
             text = data["message"]["text"].strip()
 
             if text == "/start":
+                user_modes[chat_id] = None
                 send_message(
                     chat_id,
                     "Добро пожаловать.\n\nВыбери нужное действие в меню ниже.",
@@ -166,6 +195,7 @@ async def telegram_webhook(request: Request):
                 )
 
             elif text == "Удалить фон":
+                user_modes[chat_id] = "remove_bg"
                 send_message(
                     chat_id,
                     "Отправь фото товара.\nЛучше всего отправлять как файл без сжатия.",
@@ -173,9 +203,12 @@ async def telegram_webhook(request: Request):
                 )
 
             elif text == "Создать ТЗ":
+                user_modes[chat_id] = "tz"
                 send_message(
                     chat_id,
-                    "Режим создания ТЗ будет следующим шагом.\nПока подготовка завершена.",
+                    "Режим создания ТЗ активирован.\n\n"
+                    "Шаг 1: отправь фото товара.\n"
+                    "Лучше всего отправлять как файл без сжатия.",
                     reply_markup=get_main_menu()
                 )
 
@@ -187,6 +220,7 @@ async def telegram_webhook(request: Request):
                 )
 
             elif text == "Помощь":
+                user_modes[chat_id] = None
                 send_message(
                     chat_id,
                     "Я умею:\n"
