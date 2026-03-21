@@ -7,36 +7,11 @@ from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
 from app.state import user_modes, user_data
 from app.menus import get_main_menu
 from app.telegram_api import send_message, send_document, get_file_path
+from app.services.remove_bg import remove_background_from_url
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = FastAPI() 
-
-def remove_background_from_url(image_url):
-    response = requests.post(
-        "https://api.remove.bg/v1.0/removebg",
-        data={
-            "image_url": image_url,
-            "size": "auto"
-        },
-        headers={
-            "X-Api-Key": REMOVE_BG_API_KEY
-        },
-        timeout=120
-    )
-
-    if response.status_code == 200:
-        return {
-            "success": True,
-            "content": response.content
-        }
-
-    return {
-        "success": False,
-        "status_code": response.status_code,
-        "error_text": response.text
-    }
-
 
 @app.get("/")
 def home():
