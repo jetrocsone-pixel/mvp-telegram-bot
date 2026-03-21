@@ -8,11 +8,6 @@ from app.telegram_api import send_message, send_document, get_file_path, answer_
 from app.services.remove_bg import remove_background_from_url
 from app.services.openai_service import generate_tz_lite
 
-import os
-from openai import OpenAI
-
-client = OpenAI(api_key=OPENAI_API_KEY)
-
 app = FastAPI() 
 
 @app.get("/")
