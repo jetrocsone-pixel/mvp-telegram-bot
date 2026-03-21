@@ -22,3 +22,11 @@ def get_tz_back_menu():
             [{"text": "Назад к выбору ТЗ", "callback_data": "back_to_tz_choice"}]
         ]
     }
+
+def get_tz_pro_upload_menu():
+    return {
+        "inline_keyboard": [
+            [{"text": "Готово", "callback_data": "tz_pro_done"}],
+            [{"text": "Назад к выбору ТЗ", "callback_data": "back_to_tz_choice"}]
+        ]
+    }

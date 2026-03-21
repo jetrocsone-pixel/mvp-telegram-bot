@@ -3,7 +3,7 @@ import requests
 
 from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
 from app.state import user_modes, user_data
-from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu
+from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu, get_tz_pro_upload_menu
 from app.telegram_api import send_message, send_document, get_file_path, answer_callback_query
 from app.services.remove_bg import remove_background_from_url
 from app.services.openai_service import generate_tz_lite
@@ -48,10 +48,30 @@ async def telegram_webhook(request: Request):
             send_message(
                 chat_id,
                 "Режим ТЗ Pro активирован.\n\n"
-                "Отправь от 1 до 3 фото товара.\n"
-                "Лучше всего отправлять как файл без сжатия.",
-                reply_markup=get_tz_back_menu()
+                "Шаг 1: отправь от 1 до 3 фото товара.\n"
+                "Лучше всего отправлять как файл без сжатия.\n\n"
+                "Когда закончишь загрузку, нажми «Готово».",
+                reply_markup=get_tz_pro_upload_menu()
             )
+        elif callback_data == "tz_pro_done":
+            photos = user_data.get(chat_id, {}).get("photos", [])
+
+            if len(photos) == 0:
+                send_message(
+                    chat_id,
+                    "Ты ещё не отправил ни одного фото.\n\n"
+                    "Сначала отправь от 1 до 3 фото товара, потом нажми «Готово».",
+                    reply_markup=get_tz_pro_upload_menu()
+                )
+            else:
+                user_modes[chat_id] = "tz_pro_questions_pending"
+
+                send_message(
+                    chat_id,
+                    "Фото получены.\n\n"
+                    "Следующим шагом подключим questions prompt и начнём задавать вопросы.",
+                    reply_markup=get_tz_back_menu()
+                )
 
         elif callback_data == "back_to_tz_choice":
             user_modes[chat_id] = None
@@ -80,6 +100,40 @@ async def telegram_webhook(request: Request):
 
         if "photo" in data["message"]:
             current_mode = user_modes.get(chat_id)
+
+            if current_mode == "tz_pro_wait_photos":
+                photo_list = data["message"]["photo"]
+                file_id = photo_list[-1]["file_id"]
+                file_path = get_file_path(file_id)
+
+                if file_path:
+                    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+
+                    if chat_id not in user_data:
+                        user_data[chat_id] = {"photos": []}
+
+                    if "photos" not in user_data[chat_id]:
+                        user_data[chat_id]["photos"] = []
+
+                    if len(user_data[chat_id]["photos"]) >= 3:
+                        send_message(
+                            chat_id,
+                            "Можно загрузить максимум 3 фото.\n\n"
+                            "Нажми «Готово», чтобы перейти дальше.",
+                            reply_markup=get_tz_pro_upload_menu()
+                        )
+                    else:
+                        user_data[chat_id]["photos"].append(file_url)
+
+                        send_message(
+                            chat_id,
+                            f"Фото {len(user_data[chat_id]['photos'])} из 3 получено.\n"
+                            "Можешь отправить ещё фото или нажать «Готово».",
+                            reply_markup=get_tz_pro_upload_menu()
+                        )
+
+                return {"ok": True}
+            
             if current_mode == "tz_lite_wait_photo":
                 photo_list = data["message"]["photo"]
                 file_id = photo_list[-1]["file_id"]
@@ -147,6 +201,49 @@ async def telegram_webhook(request: Request):
 
         elif "document" in data["message"]:
             current_mode = user_modes.get(chat_id)
+
+            if current_mode == "tz_pro_wait_photos":
+                document = data["message"]["document"]
+                mime_type = document.get("mime_type", "")
+
+                if mime_type.startswith("image/"):
+                    file_id = document["file_id"]
+                    file_path = get_file_path(file_id)
+
+                    if file_path:
+                        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+
+                        if chat_id not in user_data:
+                            user_data[chat_id] = {"photos": []}
+
+                        if "photos" not in user_data[chat_id]:
+                            user_data[chat_id]["photos"] = []
+
+                        if len(user_data[chat_id]["photos"]) >= 3:
+                            send_message(
+                                chat_id,
+                                "Можно загрузить максимум 3 фото.\n\n"
+                                "Нажми «Готово», чтобы перейти дальше.",
+                                reply_markup=get_tz_pro_upload_menu()
+                            )
+                        else:
+                            user_data[chat_id]["photos"].append(file_url)
+
+                            send_message(
+                                chat_id,
+                                f"Фото {len(user_data[chat_id]['photos'])} из 3 получено.\n"
+                                "Можешь отправить ещё фото или нажать «Готово».",
+                                reply_markup=get_tz_pro_upload_menu()
+                            )
+                else:
+                    send_message(
+                        chat_id,
+                        "Для ТЗ Pro нужен файл-изображение.\nОтправь фото товара.",
+                        reply_markup=get_tz_pro_upload_menu()
+                    )
+
+                return {"ok": True}
+                        
             if current_mode == "tz_lite_wait_photo":
                 document = data["message"]["document"]
                 mime_type = document.get("mime_type", "")
