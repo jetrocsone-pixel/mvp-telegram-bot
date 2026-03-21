@@ -3,7 +3,7 @@ import requests
 
 from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
 from app.state import user_modes, user_data
-from app.menus import get_main_menu, get_tz_choice_menu
+from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu
 from app.telegram_api import send_message, send_document, get_file_path, answer_callback_query
 from app.services.remove_bg import remove_background_from_url
 
@@ -22,7 +22,7 @@ def home():
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
-    
+
     if "callback_query" in data:
         callback = data["callback_query"]
         callback_id = callback["id"]
@@ -40,7 +40,7 @@ async def telegram_webhook(request: Request):
                 "Режим ТЗ Lite активирован.\n\n"
                 "Отправь 1 фото товара.\n"
                 "Лучше всего отправлять как файл без сжатия.",
-                reply_markup=get_main_menu()
+                reply_markup=get_tz_back_menu()
             )
 
         elif callback_data == "tz_pro":
@@ -54,9 +54,19 @@ async def telegram_webhook(request: Request):
                 "Режим ТЗ Pro активирован.\n\n"
                 "Отправь от 1 до 3 фото товара.\n"
                 "Лучше всего отправлять как файл без сжатия.",
-                reply_markup=get_main_menu()
+                reply_markup=get_tz_back_menu()
             )
 
+        elif callback_data == "back_to_tz_choice":
+            user_modes[chat_id] = None
+            user_data[chat_id] = {}
+
+            send_message(
+                chat_id,
+                "Выбери формат ТЗ:",
+                reply_markup=get_tz_choice_menu()
+            )
+            
         elif callback_data == "back_to_main":
             user_modes[chat_id] = None
             user_data[chat_id] = {}

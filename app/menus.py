@@ -15,3 +15,10 @@ def get_tz_choice_menu():
             [{"text": "Назад", "callback_data": "back_to_main"}]
         ]
     }
+
+def get_tz_back_menu():
+    return {
+        "inline_keyboard": [
+            [{"text": "Назад к выбору ТЗ", "callback_data": "back_to_tz_choice"}]
+        ]
+    }
