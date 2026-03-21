@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Request
 import requests
 import os
+from openai import OpenAI
 
-app = FastAPI()
+from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
+from app.state import user_modes, user_data
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-REMOVE_BG_API_KEY = os.getenv("REMOVE_BG_API_KEY")
-user_modes = {}
+client = OpenAI(api_key=OPENAI_API_KEY)
 
+app = FastAPI() 
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
