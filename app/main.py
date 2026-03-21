@@ -1,4 +1,3 @@
-from app.menus import get_main_menu
 from fastapi import FastAPI, Request
 import requests
 import os
@@ -6,46 +5,12 @@ from openai import OpenAI
 
 from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
 from app.state import user_modes, user_data
+from app.menus import get_main_menu
+from app.telegram_api import send_message, send_document, get_file_path
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = FastAPI() 
-
-def send_message(chat_id, text, reply_markup=None):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
-
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
-
-    requests.post(url, json=payload)
-
-
-def send_document(chat_id, file_bytes, filename="result.png"):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    files = {
-        "document": (filename, file_bytes, "image/png")
-    }
-    data = {
-        "chat_id": chat_id
-    }
-    requests.post(url, data=data, files=files)
-
-
-def get_file_path(file_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile"
-    response = requests.get(url, params={"file_id": file_id})
-    data = response.json()
-
-    if data.get("ok"):
-        return data["result"]["file_path"]
-
-    return None
-
 
 def remove_background_from_url(image_url):
     response = requests.post(
