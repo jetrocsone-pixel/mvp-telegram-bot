@@ -1,3 +1,4 @@
+from app.menus import get_main_menu
 from fastapi import FastAPI, Request
 import requests
 import os
@@ -33,16 +34,6 @@ def send_document(chat_id, file_bytes, filename="result.png"):
         "chat_id": chat_id
     }
     requests.post(url, data=data, files=files)
-
-
-def get_main_menu():
-    return {
-        "keyboard": [
-            [{"text": "Удалить фон"}, {"text": "Создать ТЗ"}],
-            [{"text": "Сгенерировать обложки"}, {"text": "Помощь"}]
-        ],
-        "resize_keyboard": True
-    }
 
 
 def get_file_path(file_id):
