@@ -6,6 +6,7 @@ from app.state import user_modes, user_data
 from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu
 from app.telegram_api import send_message, send_document, get_file_path, answer_callback_query
 from app.services.remove_bg import remove_background_from_url
+from app.services.openai_service import generate_tz_lite
 
 import os
 from openai import OpenAI
@@ -66,7 +67,7 @@ async def telegram_webhook(request: Request):
                 "Выбери формат ТЗ:",
                 reply_markup=get_tz_choice_menu()
             )
-            
+
         elif callback_data == "back_to_main":
             user_modes[chat_id] = None
             user_data[chat_id] = {}
@@ -84,6 +85,38 @@ async def telegram_webhook(request: Request):
 
         if "photo" in data["message"]:
             current_mode = user_modes.get(chat_id)
+            if current_mode == "tz_lite_wait_photo":
+                photo_list = data["message"]["photo"]
+                file_id = photo_list[-1]["file_id"]
+                file_path = get_file_path(file_id)
+
+                if file_path:
+                    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+
+                    send_message(
+                        chat_id,
+                        "Генерирую ТЗ Lite. Это может занять до 20–40 секунд."
+                    )
+
+                    try:
+                        tz_text = generate_tz_lite(file_url)
+
+                        user_modes[chat_id] = None
+
+                        send_message(
+                            chat_id,
+                            tz_text,
+                            reply_markup=get_main_menu()
+                        )
+                    except Exception as e:
+                        send_message(
+                            chat_id,
+                            f"Ошибка генерации ТЗ:\n{str(e)}",
+                            reply_markup=get_main_menu()
+                        )
+
+                return {"ok": True}
+            
             if current_mode == "tz":
                 send_message(
                     chat_id,
@@ -119,6 +152,41 @@ async def telegram_webhook(request: Request):
 
         elif "document" in data["message"]:
             current_mode = user_modes.get(chat_id)
+            if current_mode == "tz_lite_wait_photo":
+                document = data["message"]["document"]
+                mime_type = document.get("mime_type", "")
+
+                if mime_type.startswith("image/"):
+                    file_id = document["file_id"]
+                    file_path = get_file_path(file_id)
+
+                    if file_path:
+                        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+
+                        send_message(
+                            chat_id,
+                            "Генерирую ТЗ Lite. Это может занять до 20–40 секунд."
+                        )
+
+                        try:
+                            tz_text = generate_tz_lite(file_url)
+
+                            user_modes[chat_id] = None
+
+                            send_message(
+                                chat_id,
+                                tz_text,
+                                reply_markup=get_main_menu()
+                            )
+                        except Exception as e:
+                            send_message(
+                                chat_id,
+                                f"Ошибка генерации ТЗ:\n{str(e)}",
+                                reply_markup=get_main_menu()
+                            )
+
+                return {"ok": True}
+            
             if current_mode == "tz":
                 document = data["message"]["document"]
                 mime_type = document.get("mime_type", "")
