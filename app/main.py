@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Request
 import requests
-import os
-from openai import OpenAI
 
 from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
 from app.state import user_modes, user_data
-from app.menus import get_main_menu
-from app.telegram_api import send_message, send_document, get_file_path
+from app.menus import get_main_menu, get_tz_choice_menu
+from app.telegram_api import send_message, send_document, get_file_path, answer_callback_query
 from app.services.remove_bg import remove_background_from_url
+
+import os
+from openai import OpenAI
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -21,6 +22,52 @@ def home():
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     data = await request.json()
+    
+    if "callback_query" in data:
+        callback = data["callback_query"]
+        callback_id = callback["id"]
+        chat_id = callback["message"]["chat"]["id"]
+        callback_data = callback["data"]
+
+        answer_callback_query(callback_id)
+
+        if callback_data == "tz_lite":
+            user_modes[chat_id] = "tz_lite_wait_photo"
+            user_data[chat_id] = {}
+
+            send_message(
+                chat_id,
+                "Режим ТЗ Lite активирован.\n\n"
+                "Отправь 1 фото товара.\n"
+                "Лучше всего отправлять как файл без сжатия.",
+                reply_markup=get_main_menu()
+            )
+
+        elif callback_data == "tz_pro":
+            user_modes[chat_id] = "tz_pro_wait_photos"
+            user_data[chat_id] = {
+                "photos": []
+            }
+
+            send_message(
+                chat_id,
+                "Режим ТЗ Pro активирован.\n\n"
+                "Отправь от 1 до 3 фото товара.\n"
+                "Лучше всего отправлять как файл без сжатия.",
+                reply_markup=get_main_menu()
+            )
+
+        elif callback_data == "back_to_main":
+            user_modes[chat_id] = None
+            user_data[chat_id] = {}
+
+            send_message(
+                chat_id,
+                "Возвращаю в главное меню.",
+                reply_markup=get_main_menu()
+            )
+
+        return {"ok": True}
 
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
@@ -135,13 +182,13 @@ async def telegram_webhook(request: Request):
                 )
 
             elif text == "Создать ТЗ":
-                user_modes[chat_id] = "tz"
+                user_modes[chat_id] = None
+                user_data[chat_id] = {}
+
                 send_message(
                     chat_id,
-                    "Режим создания ТЗ активирован.\n\n"
-                    "Шаг 1: отправь фото товара.\n"
-                    "Лучше всего отправлять как файл без сжатия.",
-                    reply_markup=get_main_menu()
+                    "Выбери формат ТЗ:",
+                    reply_markup=get_tz_choice_menu()
                 )
 
             elif text == "Сгенерировать обложки":

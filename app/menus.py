@@ -6,3 +6,12 @@ def get_main_menu():
         ],
         "resize_keyboard": True
     }
+
+def get_tz_choice_menu():
+    return {
+        "inline_keyboard": [
+            [{"text": "ТЗ Lite", "callback_data": "tz_lite"}],
+            [{"text": "ТЗ Pro", "callback_data": "tz_pro"}],
+            [{"text": "Назад", "callback_data": "back_to_main"}]
+        ]
+    }

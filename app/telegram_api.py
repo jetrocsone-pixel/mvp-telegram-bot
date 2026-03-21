@@ -37,3 +37,9 @@ def get_file_path(file_id):
         return data["result"]["file_path"]
 
     return None
+
+def answer_callback_query(callback_query_id):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
+    requests.post(url, json={
+        "callback_query_id": callback_query_id
+    })
