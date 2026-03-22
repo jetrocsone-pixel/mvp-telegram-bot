@@ -185,7 +185,7 @@ def generate_tz_lite(image_url):
 """
 
     response = client.responses.create(
-        model="gpt-5-mini",
+        model="gpt-4o-mini",
         input=[
             {
                 "role": "user",
@@ -343,7 +343,7 @@ D. Комплектация
         content.append({"type": "input_image", "image_url": image_url})
 
     response = client.responses.create(
-        model="gpt-5-mini",
+        model="gpt-4o-mini",
         input=[
             {
                 "role": "user",
