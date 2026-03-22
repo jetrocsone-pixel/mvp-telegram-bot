@@ -3,12 +3,22 @@ import requests
 
 from app.config import BOT_TOKEN, REMOVE_BG_API_KEY, OPENAI_API_KEY
 from app.state import user_modes, user_data
-from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu, get_tz_pro_upload_menu
+from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu, get_tz_pro_upload_menu, get_pro_question_menu
 from app.telegram_api import send_message, send_document, get_file_path, answer_callback_query
 from app.services.remove_bg import remove_background_from_url
-from app.services.openai_service import generate_tz_lite
+from app.services.openai_service import generate_tz_lite, generate_tz_pro_questions
 
 app = FastAPI() 
+
+def format_pro_question(question_data, question_number):
+    return (
+        f"Вопрос {question_number} из 6\n\n"
+        f"{question_data['question']}\n\n"
+        f"A. {question_data['options']['A']}\n"
+        f"B. {question_data['options']['B']}\n"
+        f"C. {question_data['options']['C']}\n"
+        f"D. {question_data['options']['D']}"
+    )
 
 @app.get("/")
 def home():
@@ -53,6 +63,7 @@ async def telegram_webhook(request: Request):
                 "Когда закончишь загрузку, нажми «Готово».",
                 reply_markup=get_tz_pro_upload_menu()
             )
+
         elif callback_data == "tz_pro_done":
             photos = user_data.get(chat_id, {}).get("photos", [])
 
@@ -64,14 +75,42 @@ async def telegram_webhook(request: Request):
                     reply_markup=get_tz_pro_upload_menu()
                 )
             else:
-                user_modes[chat_id] = "tz_pro_questions_pending"
-
                 send_message(
                     chat_id,
                     "Фото получены.\n\n"
-                    "Следующим шагом подключим questions prompt и начнём задавать вопросы.",
-                    reply_markup=get_tz_back_menu()
+                    "Генерирую вопросы для ТЗ Pro. Это может занять до 20–40 секунд."
                 )
+
+                try:
+                    questions_result = generate_tz_pro_questions(photos)
+                    questions = questions_result.get("questions", [])
+
+                    if len(questions) != 6:
+                        send_message(
+                            chat_id,
+                            "Не удалось корректно сформировать 6 вопросов. Попробуй ещё раз.",
+                            reply_markup=get_tz_back_menu()
+                        )
+                    else:
+                        user_modes[chat_id] = "tz_pro_questions"
+                        user_data[chat_id]["questions"] = questions
+                        user_data[chat_id]["answers"] = []
+                        user_data[chat_id]["current_question_index"] = 0
+
+                        first_question = questions[0]
+
+                        send_message(
+                            chat_id,
+                            format_pro_question(first_question, 1),
+                            reply_markup=get_pro_question_menu()
+                        )
+
+                except Exception as e:
+                    send_message(
+                        chat_id,
+                        f"Ошибка при генерации вопросов:\n{str(e)}",
+                        reply_markup=get_tz_back_menu()
+                    )
 
         elif callback_data == "back_to_tz_choice":
             user_modes[chat_id] = None

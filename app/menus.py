@@ -30,3 +30,18 @@ def get_tz_pro_upload_menu():
             [{"text": "Назад к выбору ТЗ", "callback_data": "back_to_tz_choice"}]
         ]
     }
+
+def get_pro_question_menu():
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "A", "callback_data": "pro_answer_A"},
+                {"text": "B", "callback_data": "pro_answer_B"},
+                {"text": "C", "callback_data": "pro_answer_C"},
+                {"text": "D", "callback_data": "pro_answer_D"}
+            ],
+            [
+                {"text": "Назад к выбору ТЗ", "callback_data": "back_to_tz_choice"}
+            ]
+        ]
+    }
