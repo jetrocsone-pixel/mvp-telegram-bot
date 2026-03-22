@@ -356,3 +356,39 @@ D. Комплектация
     parsed = json.loads(raw_text)
 
     return parsed
+
+def generate_tz_pro_result(image_urls, answers, mode, base_prompt, mode_prompt):
+    answers_text = "\n".join(
+        [
+            f"{index + 1}. Вопрос: {item['question']}\n"
+            f"Ответ: {item['selected_option']} — {item['selected_text']}"
+            for index, item in enumerate(answers)
+        ]
+    )
+
+    content = [
+        {
+            "type": "input_text",
+            "text": (
+                f"{base_prompt}\n\n"
+                f"{mode_prompt}\n\n"
+                f"ОТВЕТЫ ПОЛЬЗОВАТЕЛЯ:\n{answers_text}\n\n"
+                f"Сформируй готовое ТЗ."
+            )
+        }
+    ]
+
+    for image_url in image_urls:
+        content.append({"type": "input_image", "image_url": image_url})
+
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input=[
+            {
+                "role": "user",
+                "content": content
+            }
+        ]
+    )
+
+    return response.output_text

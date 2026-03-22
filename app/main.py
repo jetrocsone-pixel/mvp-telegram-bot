@@ -6,7 +6,7 @@ from app.state import user_modes, user_data
 from app.menus import get_main_menu, get_tz_choice_menu, get_tz_back_menu, get_tz_pro_upload_menu, get_pro_question_menu
 from app.telegram_api import send_message, send_document, get_file_path, answer_callback_query
 from app.services.remove_bg import remove_background_from_url
-from app.services.openai_service import generate_tz_lite, generate_tz_pro_questions
+from app.services.openai_service import generate_tz_lite, generate_tz_pro_questions, generate_tz_pro_result
 
 app = FastAPI() 
 
@@ -19,6 +19,188 @@ def format_pro_question(question_data, question_number):
         f"C. {question_data['options']['C']}\n"
         f"D. {question_data['options']['D']}"
     )
+
+BASE_PROMPT_PRO = """
+Ты — эксперт по созданию продающих фотоворонок для маркетплейсов.
+
+У тебя есть:
+
+* изображения товара
+* ответы пользователя
+
+Задача: создать ТЗ для дизайнера.
+
+---
+
+1. УЧТИ ОТВЕТЫ ПОЛЬЗОВАТЕЛЯ
+
+* ответы приоритетны
+* влияют на структуру и подачу
+
+---
+
+2. ОПРЕДЕЛИ (внутри)
+
+* тип товара
+* ключевые смыслы
+* логику подачи
+
+---
+
+3. ОБЩАЯ СТИЛИСТИКА
+
+* цвета
+* фон (конкретный)
+* стиль графики
+* тон
+
+---
+
+4. КРИТИЧНЫЕ ПРАВИЛА
+
+* товар на первом слайде 60–80%
+* без split
+* каждый слайд = 1 смысл
+* короткий текст
+* без абстрактных фонов
+
+---
+
+5. ТЕХНИКА (ОБЯЗАТЕЛЬНО)
+
+Если техника:
+
+* добавить слайд характеристик
+* использовать цифры
+
+если нет данных:
+
+* задать структуру
+
+---
+
+6. СЛАЙДЫ
+
+6–9 слайдов
+
+Формат:
+
+Слайд X — смысл
+
+Сюжет:
+Фон:
+Композиция:
+Текст:
+Графика:
+Цель:
+
+---
+
+7. ЛОГИКА
+
+строить под тип товара
+
+---
+
+8. ЗАПРЕТЫ
+
+* не добавлять лишнее
+* не менять структуру
+* не писать теорию
+
+---
+
+Результат — готовое ТЗ
+"""
+
+MODE_STANDARD = """
+MODE — STANDARD
+
+Приоритет:
+
+* читаемость товара
+* корректная работа алгоритмов
+* минимальный риск
+
+Правила:
+
+* первый слайд простой и чистый
+
+* товар — главный объект
+
+* без split-экранов
+
+* без перегруза
+
+* структура понятная и продающая
+
+* без экспериментов, которые мешают восприятию
+"""
+
+MODE_BALANCE = """
+MODE — BALANCED
+
+Приоритет:
+
+* сочетание продающей логики и визуальной выразительности
+
+Правила:
+
+* первый слайд остаётся читаемым и понятным
+* товар должен быть главным объектом
+
+Допускается:
+
+* более интересные композиции
+* лёгкий сторителлинг
+* эмоциональные сцены
+* визуальные акценты
+
+Ограничения:
+
+* нельзя терять читаемость товара
+* нельзя перегружать кадр
+* нельзя усложнять главный слайд
+
+Цель:
+
+* выделиться среди конкурентов
+* сохранить безопасность
+"""
+
+MODE_CREATIVE = """
+MODE — CREATIVE
+
+Приоритет:
+
+* максимальное визуальное выделение
+* высокий CTR
+* нестандартная подача
+
+Допускается:
+
+* нестандартные композиции
+* сторителлинг
+* контрасты
+* до/после
+* нестандартные сцены
+
+Можно:
+
+* отходить от классической структуры
+* усиливать эмоцию
+* использовать неожиданные визуальные решения
+
+Ограничения:
+
+* товар должен оставаться понятным
+* нельзя полностью терять объект
+
+Цель:
+
+* привлечь внимание
+* выбиться из потока карточек
+"""
 
 @app.get("/")
 def home():
@@ -150,6 +332,65 @@ async def telegram_webhook(request: Request):
                             ]
                         ]
                     }
+                )
+                
+        elif callback_data in ["tz_pro_mode_standard", "tz_pro_mode_balance", "tz_pro_mode_creative"]:
+            if user_modes.get(chat_id) != "tz_pro_mode_choice":
+                return {"ok": True}
+
+            if callback_data == "tz_pro_mode_standard":
+                selected_mode = "standard"
+                mode_prompt = MODE_STANDARD
+            elif callback_data == "tz_pro_mode_balance":
+                selected_mode = "balance"
+                mode_prompt = MODE_BALANCE
+            else:
+                selected_mode = "creative"
+                mode_prompt = MODE_CREATIVE
+
+            user_data[chat_id]["selected_tz_mode"] = selected_mode
+
+            send_message(
+                chat_id,
+                "Генерирую финальное ТЗ Pro. Это может занять до 30–60 секунд."
+            )
+
+            try:
+                questions = user_data[chat_id]["questions"]
+                raw_answers = user_data[chat_id]["answers"]
+                image_urls = user_data[chat_id]["photos"]
+
+                structured_answers = []
+
+                for i, answer_letter in enumerate(raw_answers):
+                    question_item = questions[i]
+                    structured_answers.append({
+                        "question": question_item["question"],
+                        "selected_option": answer_letter,
+                        "selected_text": question_item["options"][answer_letter]
+                    })
+
+                result_text = generate_tz_pro_result(
+                    image_urls=image_urls,
+                    answers=structured_answers,
+                    mode=selected_mode,
+                    base_prompt=BASE_PROMPT_PRO,
+                    mode_prompt=mode_prompt
+                )
+
+                user_modes[chat_id] = None
+
+                send_message(
+                    chat_id,
+                    result_text,
+                    reply_markup=get_main_menu()
+                )
+
+            except Exception as e:
+                send_message(
+                    chat_id,
+                    f"Ошибка при генерации финального ТЗ Pro:\n{str(e)}",
+                    reply_markup=get_main_menu()
                 )
 
         elif callback_data == "back_to_tz_choice":
