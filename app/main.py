@@ -112,6 +112,46 @@ async def telegram_webhook(request: Request):
                         reply_markup=get_tz_back_menu()
                     )
 
+        elif callback_data.startswith("pro_answer_"):
+            if user_modes.get(chat_id) != "tz_pro_questions":
+                return {"ok": True}
+
+            answer = callback_data.split("_")[-1]
+
+            user_data[chat_id]["answers"].append(answer)
+            user_data[chat_id]["current_question_index"] += 1
+
+            current_index = user_data[chat_id]["current_question_index"]
+            questions = user_data[chat_id]["questions"]
+
+            if current_index < 6:
+                next_question = questions[current_index]
+
+                send_message(
+                    chat_id,
+                    format_pro_question(next_question, current_index + 1),
+                    reply_markup=get_pro_question_menu()
+                )
+            else:
+                user_modes[chat_id] = "tz_pro_mode_choice"
+
+                send_message(
+                    chat_id,
+                    "Отлично. Все ответы получены.\n\nВыбери формат ТЗ:",
+                    reply_markup={
+                        "inline_keyboard": [
+                            [
+                                {"text": "Стандарт", "callback_data": "tz_pro_mode_standard"},
+                                {"text": "Баланс", "callback_data": "tz_pro_mode_balance"},
+                                {"text": "Креатив", "callback_data": "tz_pro_mode_creative"}
+                            ],
+                            [
+                                {"text": "Назад к выбору ТЗ", "callback_data": "back_to_tz_choice"}
+                            ]
+                        ]
+                    }
+                )
+
         elif callback_data == "back_to_tz_choice":
             user_modes[chat_id] = None
             user_data[chat_id] = {}
