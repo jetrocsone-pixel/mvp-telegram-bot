@@ -199,8 +199,6 @@ def generate_tz_lite(image_url):
 
     return response.output_text
 
-import json
-
 
 def generate_tz_pro_questions(image_urls):
     prompt = """
