@@ -28,7 +28,8 @@ def format_pro_question(question_data, question_number):
 BASE_PROMPT_PRO = """
 You are a senior expert in creating high-converting product image funnels for marketplaces (Wildberries, Ozon).
 
-Your task is NOT to explain.
+Your task is NOT to explain anything.
+
 Your task is to produce a STRICT, structured technical brief (ТЗ) for a designer.
 
 INPUT:
@@ -78,11 +79,11 @@ You MUST follow:
 Slide 1: product occupies 60–80% of frame
 NO split-screen on first slide
 ONE slide = ONE idea
-text = 1–2 short lines only
+text = 1–2 short lines ONLY
 NO abstract backgrounds
 
 FORBIDDEN:
-"beauty", "nice", "lifestyle" without description
+"beauty", "nice", "lifestyle" without explanation
 
 Each background MUST include:
 
@@ -91,19 +92,17 @@ objects
 lighting
 TECH CHARACTERISTICS (STRICT)
 
-If product has functionality:
+If product has ANY functionality:
 
 You MUST:
 
 include a characteristics slide
-define STRUCTURE of characteristics
+define EXACT structure
 
-DO NOT write abstract phrases like:
+DO NOT write:
 "table with characteristics"
 
-You MUST define fields:
-
-Examples:
+You MUST define structure:
 
 For tech:
 
@@ -119,7 +118,6 @@ material: ___
 fit: ___
 stretch: ___
 waistband: ___
-season: ___
 
 DO NOT invent values.
 
@@ -145,7 +143,7 @@ lighting
 (positioning of product)
 
 Текст:
-(1–2 short lines)
+(1–2 short lines ONLY)
 
 Графика:
 (icons / highlights / arrows)
@@ -155,20 +153,27 @@ lighting
 
 MANDATORY CATEGORY STRUCTURE (CRITICAL)
 
-You MUST follow category-specific logic.
+You MUST follow strict category logic.
 
 IF CLOTHING:
 
-You MUST include:
+You MUST follow this order:
 
-look / outfit (how it looks on body)
-fit (how it sits on body)
-details (pockets, seams, elements)
-fabric (texture, stretch, feel)
-size (size chart or explanation)
+look / outfit
+fit (how it sits)
+details (construction)
+fabric (behavior)
+size (MANDATORY)
+optional: styling (only if strong)
 
-FORBIDDEN to replace with:
-"comfort", "trust", "usage"
+Maximum: 7 slides
+
+FORBIDDEN:
+
+comfort slides
+trust slides
+generic lifestyle slides
+season slides
 
 IF TECH:
 
@@ -176,7 +181,7 @@ You MUST include:
 
 usage
 key function
-characteristics (mandatory)
+characteristics (MANDATORY)
 connection / compatibility
 additional features
 
@@ -189,7 +194,27 @@ solution
 process
 result
 
-IF violated → result is incorrect.
+If violated → result is incorrect.
+
+FORBIDDEN GENERIC SLIDES
+
+You MUST NOT create slides like:
+
+"comfort"
+"trust"
+"final message"
+"collection"
+"season"
+
+Each slide MUST answer a buying decision.
+
+If not → remove slide.
+
+SEASON HANDLING
+DO NOT ask about season
+DO NOT create season slides
+
+Only include if clearly visible.
 
 STRICT PROHIBITIONS
 DO NOT skip structure
@@ -201,21 +226,21 @@ FINAL CHECK (MANDATORY)
 
 Before output:
 
-all slides are unique
+each slide is unique
 no duplicated meanings
-backgrounds are SPECIFIC
-characteristics are structured (if applicable)
+all backgrounds are SPECIFIC
+characteristics are structured
 
 OUTPUT RULES:
 
 Russian language ONLY
 plain text ONLY
 NO markdown
-NO symbols like #, *, etc.
+NO symbols (#, *, etc.)
 
 FINAL RESULT:
 
-A complete, production-ready technical brief.
+A complete, structured, production-ready technical brief.
 """
 
 MODE_STANDARD = """
