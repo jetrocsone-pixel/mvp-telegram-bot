@@ -1,11 +1,66 @@
+import logging
+
 import requests
 
 from app.config import BOT_TOKEN
 
+logger = logging.getLogger(__name__)
+REQUEST_TIMEOUT = (10, 60)
+
+
+def _telegram_url(method):
+    return f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
+
+
+def _post_telegram(method, *, json=None, data=None, files=None):
+    try:
+        response = requests.post(
+            _telegram_url(method),
+            json=json,
+            data=data,
+            files=files,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+        if not payload.get("ok", True):
+            logger.error("Telegram API returned error for %s: %s", method, payload)
+            return None
+
+        return payload
+    except requests.RequestException:
+        logger.exception("Telegram API request failed for %s", method)
+        return None
+    except ValueError:
+        logger.exception("Telegram API returned non-JSON response for %s", method)
+        return None
+
+
+def _get_telegram(method, *, params=None):
+    try:
+        response = requests.get(
+            _telegram_url(method),
+            params=params,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+        if not payload.get("ok", True):
+            logger.error("Telegram API returned error for %s: %s", method, payload)
+            return None
+
+        return payload
+    except requests.RequestException:
+        logger.exception("Telegram API request failed for %s", method)
+        return None
+    except ValueError:
+        logger.exception("Telegram API returned non-JSON response for %s", method)
+        return None
+
 
 def send_message(chat_id, text, reply_markup=None):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
     payload = {
         "chat_id": chat_id,
         "text": text
@@ -14,32 +69,29 @@ def send_message(chat_id, text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = reply_markup
 
-    requests.post(url, json=payload)
+    return _post_telegram("sendMessage", json=payload) is not None
 
 
 def send_document(chat_id, file_bytes, filename="result.png"):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
     files = {
         "document": (filename, file_bytes, "image/png")
     }
     data = {
         "chat_id": chat_id
     }
-    requests.post(url, data=data, files=files)
+    return _post_telegram("sendDocument", data=data, files=files) is not None
 
 
 def get_file_path(file_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile"
-    response = requests.get(url, params={"file_id": file_id})
-    data = response.json()
+    payload = _get_telegram("getFile", params={"file_id": file_id})
 
-    if data.get("ok"):
-        return data["result"]["file_path"]
+    if payload:
+        return payload["result"]["file_path"]
 
     return None
 
+
 def answer_callback_query(callback_query_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery"
-    requests.post(url, json={
+    return _post_telegram("answerCallbackQuery", json={
         "callback_query_id": callback_query_id
-    })
+    }) is not None

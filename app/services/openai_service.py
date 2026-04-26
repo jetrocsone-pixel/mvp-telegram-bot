@@ -1,8 +1,55 @@
-from openai import OpenAI
-from app.config import OPENAI_API_KEY
 import json
+import logging
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+from openai import OpenAI
+
+from app.config import OPENAI_API_KEY
+
+logger = logging.getLogger(__name__)
+MODEL_NAME = "gpt-4o-mini"
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+
+def _get_client():
+    if client is None:
+        raise RuntimeError("Не задан OPENAI_API_KEY.")
+
+    return client
+
+
+def _build_image_content(prompt, image_urls):
+    content = [{"type": "input_text", "text": prompt}]
+
+    for image_url in image_urls:
+        content.append({"type": "input_image", "image_url": image_url})
+
+    return content
+
+
+def _create_response(content):
+    return _get_client().responses.create(
+        model=MODEL_NAME,
+        input=[
+            {
+                "role": "user",
+                "content": content
+            }
+        ]
+    )
+
+
+def _parse_questions_response(raw_text):
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        logger.exception("OpenAI returned invalid JSON for TZ Pro questions")
+        raise ValueError("OpenAI вернул некорректный JSON для вопросов.") from exc
+
+    questions = parsed.get("questions")
+    if not isinstance(questions, list):
+        raise ValueError("OpenAI вернул ответ без списка questions.")
+
+    return parsed
 
 
 def generate_tz_lite(image_url):
@@ -184,18 +231,7 @@ def generate_tz_lite(image_url):
 четкий, структурный, без лишнего текста.
 """
 
-    response = client.responses.create(
-        model="gpt-4o-mini",
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": prompt},
-                    {"type": "input_image", "image_url": image_url}
-                ]
-            }
-        ]
-    )
+    response = _create_response(_build_image_content(prompt, [image_url]))
 
     return response.output_text
 
@@ -337,25 +373,10 @@ D. Комплектация
 }
 """
 
-    content = [{"type": "input_text", "text": prompt}]
-
-    for image_url in image_urls:
-        content.append({"type": "input_image", "image_url": image_url})
-
-    response = client.responses.create(
-        model="gpt-4o-mini",
-        input=[
-            {
-                "role": "user",
-                "content": content
-            }
-        ]
-    )
+    response = _create_response(_build_image_content(prompt, image_urls))
 
     raw_text = response.output_text.strip()
-    parsed = json.loads(raw_text)
-
-    return parsed
+    return _parse_questions_response(raw_text)
 
 def generate_tz_pro_result(image_urls, answers, mode, base_prompt, mode_prompt):
     answers_text = "\n".join(
@@ -381,14 +402,6 @@ def generate_tz_pro_result(image_urls, answers, mode, base_prompt, mode_prompt):
     for image_url in image_urls:
         content.append({"type": "input_image", "image_url": image_url})
 
-    response = client.responses.create(
-        model="gpt-4o-mini",
-        input=[
-            {
-                "role": "user",
-                "content": content
-            }
-        ]
-    )
+    response = _create_response(content)
 
     return response.output_text
