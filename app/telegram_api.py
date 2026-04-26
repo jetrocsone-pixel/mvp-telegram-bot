@@ -6,6 +6,7 @@ from app.config import BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT = (10, 60)
+TELEGRAM_TEXT_LIMIT = 4096
 
 
 def _telegram_url(method):
@@ -60,16 +61,43 @@ def _get_telegram(method, *, params=None):
         return None
 
 
+def _split_text(text, limit=TELEGRAM_TEXT_LIMIT):
+    if len(text) <= limit:
+        return [text]
+
+    chunks = []
+    remaining = text
+
+    while len(remaining) > limit:
+        split_index = remaining.rfind("\n", 0, limit)
+        if split_index <= 0:
+            split_index = limit
+
+        chunks.append(remaining[:split_index].rstrip())
+        remaining = remaining[split_index:].lstrip("\n")
+
+    if remaining:
+        chunks.append(remaining)
+
+    return chunks
+
+
 def send_message(chat_id, text, reply_markup=None):
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
+    chunks = _split_text(text)
+    sent_all = True
 
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
+    for index, chunk in enumerate(chunks):
+        payload = {
+            "chat_id": chat_id,
+            "text": chunk
+        }
 
-    return _post_telegram("sendMessage", json=payload) is not None
+        if reply_markup and index == len(chunks) - 1:
+            payload["reply_markup"] = reply_markup
+
+        sent_all = _post_telegram("sendMessage", json=payload) is not None and sent_all
+
+    return sent_all
 
 
 def send_document(chat_id, file_bytes, filename="result.png"):

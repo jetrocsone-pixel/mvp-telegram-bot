@@ -1,0 +1,15 @@
+CB_TZ_LITE = "tz_lite"
+CB_TZ_PRO = "tz_pro"
+CB_TZ_PRO_DONE = "tz_pro_done"
+CB_BACK_TO_TZ_CHOICE = "back_to_tz_choice"
+CB_BACK_TO_MAIN = "back_to_main"
+
+CB_PRO_ANSWER_PREFIX = "pro_answer_"
+CB_PRO_ANSWER_A = "pro_answer_A"
+CB_PRO_ANSWER_B = "pro_answer_B"
+CB_PRO_ANSWER_C = "pro_answer_C"
+CB_PRO_ANSWER_D = "pro_answer_D"
+
+CB_TZ_PRO_MODE_STANDARD = "tz_pro_mode_standard"
+CB_TZ_PRO_MODE_BALANCE = "tz_pro_mode_balance"
+CB_TZ_PRO_MODE_CREATIVE = "tz_pro_mode_creative"
