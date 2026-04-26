@@ -1,13 +1,17 @@
+import logging
+
 from app.state import user_modes, user_data
 from app.menus import (
     get_main_menu,
-    get_tz_choice_menu,
-    get_tz_back_menu,
-    get_tz_pro_upload_menu,
     get_pro_question_menu,
+    get_tz_back_menu,
+    get_tz_choice_menu,
+    get_tz_pro_upload_menu,
 )
 from app.telegram_api import send_message, answer_callback_query
 from app.services.openai_service import generate_tz_pro_questions, generate_tz_pro_result
+
+logger = logging.getLogger(__name__)
 
 
 def format_pro_question(question_data, question_number):
@@ -208,6 +212,7 @@ def handle_callback_query(callback):
     callback_id = callback["id"]
     chat_id = callback["message"]["chat"]["id"]
     callback_data = callback["data"]
+    logger.info("Handling callback for chat_id=%s data=%s", chat_id, callback_data)
 
     answer_callback_query(callback_id)
 
