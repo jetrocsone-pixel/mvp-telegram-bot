@@ -54,98 +54,18 @@ def _parse_questions_response(raw_text):
 
 def generate_tz_lite(image_url):
     prompt = """
-You are an expert in creating high-converting product image funnels for marketplaces.
+You analyze product images.
 
-Your task:
-Analyze ONE product image and generate a clear technical brief (ТЗ) for a designer.
+Your task is to generate EXACTLY 6 questions for the user to уточнить данные для создания фотоворонки.
 
-IMPORTANT:
-- Final answer MUST be in Russian
-- Do NOT use markdown (no ###, **, tables, code blocks)
-- Use simple, clean formatting suitable for Telegram
-- Keep text short and readable
-- No long explanations
-- No internal analysis
+STRUCTURE:
 
----
+You MUST return:
 
-OUTPUT STRUCTURE:
+4 FIXED questions (always identical)
+2 AI-generated questions (dynamic)
 
-ТЗ для фотоворонки
-
-Общий стиль:
-- Цвета:
-- Фон:
-- Стиль:
-- Тон:
-
----
-
-Слайды 1–5 (подробно)
-
-Формат строго:
-
-Слайд X — смысл
-
-Что показываем:
-Текст:
-Цель:
-
-Требования к тексту:
-- максимум 1–2 короткие строки
-- без клише
-- конкретика
-- читается за 1–2 секунды
-
----
-
-Дополнительные слайды (кратко):
-
-Слайд 6 — ...
-Слайд 7 — ...
-Слайд 8 — ...
-
-(каждый — 1 короткая идея)
-
----
-
-ПРАВИЛА:
-
-- не выдумывать характеристики
-- не использовать шаблонную структуру
-- каждый слайд должен быть уникальным по смыслу
-- избегать общих фраз типа "высокое качество"
-- писать как маркетолог, а не как инструкция
-
----
-
-Результат:
-готовое ТЗ, которое можно сразу отдать дизайнеру
-"""
-
-    response = _create_response(_build_image_content(prompt, [image_url]))
-
-    return response.output_text
-
-
-def generate_tz_pro_questions(image_urls):
-    prompt = """
-Ты анализируешь товар по изображениям.
-
-Твоя задача — сформировать 6 вопросов пользователю, чтобы уточнить данные для создания фотоворонки.
-
----
-
-СТРУКТУРА:
-
-Нужно вернуть:
-
-- 4 фиксированных вопроса (всегда одинаковые)
-- 2 умных вопроса (генерируются под товар)
-
----
-
-ФИКСИРОВАННЫЕ ВОПРОСЫ:
+FIXED QUESTIONS (DO NOT MODIFY):
 
 Вопрос 1 — Что главное нужно подчеркнуть?
 
@@ -175,93 +95,116 @@ B. Характеристики / состав
 C. Использование / сценарии
 D. Комплектация
 
----
+AI QUESTIONS (5–6) — CRITICAL RULES
 
-УМНЫЕ ВОПРОСЫ (5 и 6):
+You MUST:
 
-Требования:
+analyze what is NOT visible in images
+ask ONLY about missing information
+ensure questions directly affect visual output
+make questions DIFFERENT each time
+adapt questions to product type
 
-- должны закрывать пробелы, которые нельзя понять по фото
-- должны влиять на ТЗ
-- должны быть конкретными
-- каждый вопрос должен иметь 4 варианта ответа A/B/C/D
-- не должны дублировать фиксированные вопросы
-- не должны быть абстрактными
-- не должны быть формальными
+STRICTLY FORBIDDEN:
 
----
+asking about season
+asking about weather
+asking about time of year
+asking generic questions
+repeating same question logic
+rephrasing fixed questions
 
-ЗАПРЕЩЕНО:
+If any question is about season → result is INVALID.
 
-- задавать абстрактные вопросы
-- задавать вопросы без влияния на визуал
-- дублировать фиксированные вопросы
+GOOD QUESTION TYPES:
 
----
+material details
+fit / structure
+functionality
+usage specifics
+differentiators
+product behavior
 
-ФОРМАТ ОТВЕТА:
+BAD QUESTION TYPES:
 
-Верни строго JSON, без пояснений, без markdown, без текста до или после JSON.
+когда использовать
+для какого сезона
+что важно
+что лучше
+любые общие вопросы без конкретики
 
-Структура должна быть ровно такой:
+FORMAT REQUIREMENTS:
+
+Questions must be clear and short
+Each question MUST have exactly 4 options (A/B/C/D)
+Options must be meaningful and different
+No duplicate meanings between options
+
+OUTPUT FORMAT (STRICT):
+
+Return ONLY JSON.
+
+No explanations.
+No markdown.
+No extra text.
 
 {
-  "questions": [
-    {
-      "question": "Что главное нужно подчеркнуть?",
-      "options": {
-        "A": "Внешний вид / дизайн",
-        "B": "Функцию / пользу",
-        "C": "Удобство / комфорт",
-        "D": "Результат / эффект"
-      }
-    },
-    {
-      "question": "Как лучше показать товар?",
-      "options": {
-        "A": "В использовании",
-        "B": "В окружении",
-        "C": "Через детали",
-        "D": "Смешанно"
-      }
-    },
-    {
-      "question": "Какой формат подачи нужен?",
-      "options": {
-        "A": "Минимализм",
-        "B": "Инфографика",
-        "C": "Эмоция / атмосфера",
-        "D": "Смешанный"
-      }
-    },
-    {
-      "question": "Какой блок обязательно нужен?",
-      "options": {
-        "A": "Размеры / габариты",
-        "B": "Характеристики / состав",
-        "C": "Использование / сценарии",
-        "D": "Комплектация"
-      }
-    },
-    {
-      "question": "...",
-      "options": {
-        "A": "...",
-        "B": "...",
-        "C": "...",
-        "D": "..."
-      }
-    },
-    {
-      "question": "...",
-      "options": {
-        "A": "...",
-        "B": "...",
-        "C": "...",
-        "D": "..."
-      }
-    }
-  ]
+"questions": [
+{
+"question": "Что главное нужно подчеркнуть?",
+"options": {
+"A": "Внешний вид / дизайн",
+"B": "Функцию / пользу",
+"C": "Удобство / комфорт",
+"D": "Результат / эффект"
+}
+},
+{
+"question": "Как лучше показать товар?",
+"options": {
+"A": "В использовании",
+"B": "В окружении",
+"C": "Через детали",
+"D": "Смешанно"
+}
+},
+{
+"question": "Какой формат подачи нужен?",
+"options": {
+"A": "Минимализм",
+"B": "Инфографика",
+"C": "Эмоция / атмосфера",
+"D": "Смешанный"
+}
+},
+{
+"question": "Какой блок обязательно нужен?",
+"options": {
+"A": "Размеры / габариты",
+"B": "Характеристики / состав",
+"C": "Использование / сценарии",
+"D": "Комплектация"
+}
+},
+{
+"question": "...",
+"options": {
+"A": "...",
+"B": "...",
+"C": "...",
+"D": "..."
+}
+},
+{
+"question": "...",
+"options": {
+"A": "...",
+"B": "...",
+"C": "...",
+"D": "..."
+}
+}
+]
 }
 """
 
